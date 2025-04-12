@@ -1,24 +1,16 @@
 import pandas as pd
 import sqlite3
-import logging
+
 from typing import Optional
 from pathlib import Path
 from tabulate import tabulate
 
-# Path configuration
-DB_PATH = Path("database/forex_data.db")
-RAW_CSV_FILE_PATH = Path("data/raw/daily_forex_rates.csv")
-PROCESSED_FILES_PATH = Path("data/processed")
-
-# SQL table name
-HISTORY_TABLE_NAME = "forex_rates_history"
-
-
-# Logger configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()],
+from etl.config import (
+    logging,
+    DB_PATH,
+    PROCESSED_FILES_PATH,
+    RAW_CSV_FILE_PATH,
+    HISTORY_TABLE_NAME,
 )
 
 
@@ -259,7 +251,7 @@ def save_to_database(df: pd.DataFrame) -> bool:
         return False
 
 
-def run() -> None:
+def run_csv_loading_process() -> None:
     """Main function to orchestrate the data processing pipeline."""
     logging.info(f"⚙️ Starting ETL:CSV pipeline with {RAW_CSV_FILE_PATH}")
 
@@ -286,4 +278,4 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    run_csv_loading_process()

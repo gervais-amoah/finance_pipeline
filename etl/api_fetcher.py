@@ -1,33 +1,21 @@
-import logging
-from datetime import datetime, time
-from pathlib import Path
-from typing import Dict, Optional, Any
-
 import pandas as pd
-import pytz
 import requests
 import sqlite3
+
+import pytz
+from datetime import datetime
+from typing import Dict, Optional, Any
 from tabulate import tabulate
 
-# Constants
-BASE_CURRENCY = "EUR"
-API_URL = "https://api.frankfurter.app/latest"
-DB_PATH = Path("database/forex_data.db")
-CSV_FILE_PATH = Path("data/processed/forex_api.csv")
-
-# API settings - Updated daily around 16:00 CET
-API_UPDATE_TIME = time(hour=16, minute=0)
-CET_TIMEZONE = pytz.timezone("CET")
-
-# SQL table name
-API_TABLE_NAME = "forex_rates_api"
-
-
-# Logger configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()],
+from etl.config import (
+    logging,
+    DB_PATH,
+    CSV_FILE_PATH,
+    API_URL,
+    DEFAULT_CURRENCY,
+    API_TABLE_NAME,
+    API_UPDATE_TIME,
+    CET_TIMEZONE,
 )
 
 
@@ -52,7 +40,7 @@ def fetch_forex_data() -> Optional[Dict[str, Any]]:
     Returns:
         Optional[Dict[str, Any]]: Raw JSON response or None if failed
     """
-    params = {"base": BASE_CURRENCY}
+    params = {"base": DEFAULT_CURRENCY}
 
     try:
         logging.info(f"⌛ Fetching data from API...")
@@ -92,7 +80,7 @@ def transform_forex_data(raw_data: Dict[str, Any]) -> Optional[pd.DataFrame]:
 
         # Create DataFrame
         df = pd.DataFrame(rates.items(), columns=["currency", "exchange_rate"])
-        df["base_currency"] = BASE_CURRENCY
+        df["base_currency"] = DEFAULT_CURRENCY
         df["date"] = date_str
         df["timestamp_utc"] = utc_timestamp
 
@@ -250,7 +238,7 @@ def save_to_database(df: pd.DataFrame) -> bool:
         return False
 
 
-def run() -> None:
+def run_api_process() -> None:
     """Main ETL pipeline function."""
     logging.info(f"⚙️ Starting ETL:API pipeline with {API_URL}")
 
@@ -278,4 +266,4 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    run_api_process()

@@ -1,33 +1,27 @@
-import logging
+import requests
+import pandas as pd
+import sqlite3
+
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
-
-import requests
 from bs4 import BeautifulSoup
-import pandas as pd
-import sqlite3
 from tabulate import tabulate
 
-# Constants
-BASE_CURRENCY = "EUR"
-URL = "https://www.x-rates.com/table/?from=EUR&amount=1"
-DB_PATH = Path("database/forex_data.db")
-PROCESSED_DIR = Path("data/processed/")
-TABLE_NAME = "forex_rates_scraped"
-
-# Logger configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()],
+from etl.config import (
+    DEFAULT_CURRENCY,
+    logging,
+    WEBPAGE_URL,
+    DB_PATH,
+    PROCESSED_FILES_PATH,
+    WEB_SCRAPPER_TABLE_NAME,
 )
 
 
 def ensure_directories() -> bool:
     try:
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+        PROCESSED_FILES_PATH.mkdir(parents=True, exist_ok=True)
         return True
     except Exception as e:
         logging.error(f"❌ Error creating directories: {e}")
@@ -37,7 +31,7 @@ def ensure_directories() -> bool:
 def fetch_html() -> Optional[str]:
     try:
         logging.info("⌛ Fetching exchange rate page...")
-        response = requests.get(URL)
+        response = requests.get(WEBPAGE_URL)
         response.raise_for_status()
         logging.info("✅ HTML content fetched successfully.")
         return response.text
@@ -76,7 +70,7 @@ def parse_rates(html: str, timestamp: datetime) -> pd.DataFrame:
         data.append(
             {
                 "currency_name": currency_name,
-                "base_currency": BASE_CURRENCY,
+                "base_currency": DEFAULT_CURRENCY,
                 "exchange_rate": exchange_rate,
                 "date": timestamp.date().isoformat(),
                 "timestamp": timestamp.isoformat(),
@@ -88,7 +82,7 @@ def parse_rates(html: str, timestamp: datetime) -> pd.DataFrame:
 
 
 def get_csv_path(date_str: str) -> Path:
-    return PROCESSED_DIR / f"forex_scraped_{date_str}.csv"
+    return PROCESSED_FILES_PATH / f"forex_scraped_{date_str}.csv"
 
 
 def save_to_csv(df: pd.DataFrame, date_str: str) -> bool:
@@ -111,7 +105,7 @@ def save_to_csv(df: pd.DataFrame, date_str: str) -> bool:
 
 def create_table(conn: sqlite3.Connection) -> bool:
     query = f"""
-        CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+        CREATE TABLE IF NOT EXISTS {WEB_SCRAPPER_TABLE_NAME} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             currency_name TEXT,
             base_currency TEXT,
@@ -124,7 +118,7 @@ def create_table(conn: sqlite3.Connection) -> bool:
     try:
         conn.execute(query)
         conn.commit()
-        logging.info(f"✅ Table `{TABLE_NAME}` is ready.")
+        logging.info(f"✅ Table `{WEB_SCRAPPER_TABLE_NAME}` is ready.")
         return True
     except sqlite3.Error as e:
         logging.error(f"❌ Error creating table: {e}")
@@ -133,7 +127,7 @@ def create_table(conn: sqlite3.Connection) -> bool:
 
 def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     query = f"""
-        INSERT OR IGNORE INTO {TABLE_NAME}
+        INSERT OR IGNORE INTO {WEB_SCRAPPER_TABLE_NAME}
         (currency_name, base_currency, exchange_rate, date, timestamp)
         VALUES (?, ?, ?, ?, ?)
     """
@@ -163,7 +157,7 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
 def display_data(conn: sqlite3.Connection) -> None:
     query = f"""
         SELECT currency_name, base_currency, exchange_rate, timestamp
-        FROM {TABLE_NAME}
+        FROM {WEB_SCRAPPER_TABLE_NAME}
         ORDER BY timestamp DESC
         LIMIT 10;
     """
@@ -189,7 +183,7 @@ def save_to_db(df: pd.DataFrame) -> bool:
         return False
 
 
-def run() -> None:
+def run_web_scrapping_process() -> None:
     logging.info("⚙️ Starting ETL:Web Scraping process...")
     if not ensure_directories():
         return
@@ -217,4 +211,4 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    run_web_scrapping_process()
