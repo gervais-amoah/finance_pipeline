@@ -14,6 +14,7 @@ logging.basicConfig(
 # Constants
 DEFAULT_CURRENCY = "EUR"
 
+RAW_CSV_FILE_URL = "https://www.kaggle.com/datasets/asaniczka/forex-exchange-rate-since-2004-updated-daily/versions/529/data"
 WEBPAGE_URL = f"https://www.x-rates.com/table/?from={DEFAULT_CURRENCY}&amount=1"
 API_URL = "https://api.frankfurter.app/latest"
 
