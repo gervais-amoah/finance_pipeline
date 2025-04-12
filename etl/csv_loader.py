@@ -4,17 +4,20 @@ import logging
 from pathlib import Path
 from tabulate import tabulate
 
-# Logger configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
 # Path configuration
 CSV_PATH = Path("data/processed/forex_rates_4m.csv")
 DB_PATH = Path("database/forex_data.db")
 
 # SQL table name
 HISTORY_TABLE_NAME = "forex_rates_history"
+
+
+# Logger configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 def load_csv_data(path: Path) -> pd.DataFrame:
