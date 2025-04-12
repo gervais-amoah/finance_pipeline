@@ -25,18 +25,21 @@ def load_csv_data(path):
     return df
 
 
-# 2. Nettoyage et formatage
+# 2. Nettoyage et formattage des données
 def clean_data(df):
     logging.info("Nettoyage des données...")
     df.drop_duplicates(inplace=True)
     df.dropna(subset=["currency", "exchange_rate", "date"], inplace=True)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df[df["exchange_rate"] > 0]
+
+    # 🕙 Ajouter le timestamp_utc basé sur 10:00:00 UTC
+    df["timestamp_utc"] = df["date"] + pd.Timedelta(hours=10)
     logging.info(f"{len(df)} lignes après nettoyage.")
     return df
 
 
-# 3. Création de la base de données et de la table
+# 3. Création de la table avec le nouveau champ timestamp_utc
 def create_table(conn):
     logging.info("Création de la table SQL si elle n'existe pas.")
     query = f"""
@@ -47,6 +50,7 @@ def create_table(conn):
         currency_name TEXT,
         exchange_rate REAL NOT NULL,
         date DATE NOT NULL,
+        timestamp_utc TEXT NOT NULL,
         UNIQUE(currency, date)
     );
     """
@@ -65,15 +69,16 @@ def insert_data(conn, df):
             conn.execute(
                 f"""
                 INSERT OR IGNORE INTO {HISTORY_TABLE_NAME}
-                (currency, base_currency, currency_name, exchange_rate, date)
-                VALUES (?, ?, ?, ?, ?)
-            """,
+                (currency, base_currency, currency_name, exchange_rate, date, timestamp_utc)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
                 (
                     row.currency,
                     row.base_currency,
                     row.currency_name,
                     row.exchange_rate,
                     row.date.strftime("%Y-%m-%d"),
+                    row.timestamp_utc.isoformat(),
                 ),
             )
             inserted += conn.total_changes
@@ -82,23 +87,27 @@ def insert_data(conn, df):
             logging.warning(f"Ligne ignorée: {e}")
     conn.commit()
     logging.info(
-        f"Insertion terminée: {inserted} nouvelles lignes insérées, {skipped} lignes ignorées."
+        f"✅ Insertion terminée: {inserted} nouvelles lignes insérées, {skipped} lignes ignorées."
     )
 
 
-# 5. Afficher les données insérées (limité à 10 lignes pour la lisibilité)
+# 5. Affichage d’un échantillon
 def display_data(conn):
     logging.info("Affichage des données insérées (limité à 10 lignes):")
-    query = (
-        f"SELECT * FROM {HISTORY_TABLE_NAME} ORDER BY date DESC, currency ASC LIMIT 10;"
-    )
+    query = f"""
+        SELECT currency, base_currency, exchange_rate, timestamp_utc
+        FROM {HISTORY_TABLE_NAME}
+        ORDER BY timestamp_utc DESC, currency ASC
+        LIMIT 10;
+    """
     df = pd.read_sql_query(query, conn)
     print(tabulate(df, headers="keys", tablefmt="fancy_grid"))
 
 
+# Fonction principale
 def run():
     if not CSV_PATH.exists():
-        logging.error(f"Fichier CSV introuvable à {CSV_PATH}")
+        logging.error(f"❌ Fichier CSV introuvable à {CSV_PATH}")
         return
 
     df = load_csv_data(CSV_PATH)
@@ -107,6 +116,7 @@ def run():
     with sqlite3.connect(DB_PATH) as conn:
         create_table(conn)
         insert_data(conn, df)
+        display_data(conn)
 
 
 if __name__ == "__main__":
