@@ -5,6 +5,7 @@ from pathlib import Path
 import logging
 import pytz
 from datetime import datetime, time
+from tabulate import tabulate
 
 # Configuration du logger
 logging.basicConfig(
@@ -17,6 +18,11 @@ logging.basicConfig(
 DB_PATH = Path("database/forex_data.db")
 API_TABLE_NAME = "forex_rates_api"
 API_URL = "https://api.frankfurter.app/latest"
+
+# Updated daily around 16:00 CET.
+API_UPDATING_HOUR = 16
+API_UPDATING_MINUTES = 0
+
 BASE_CURRENCY = "EUR"
 csv_file_path = "data/processed/forex_api.csv"
 
@@ -41,7 +47,10 @@ def fetch_forex_data():
         date_str = data.get("date", str(datetime.now().date()))
         cet = pytz.timezone("CET")
         cet_dt = cet.localize(
-            datetime.combine(datetime.strptime(date_str, "%Y-%m-%d"), time(16, 0))
+            datetime.combine(
+                datetime.strptime(date_str, "%Y-%m-%d"),
+                time(API_UPDATING_HOUR, API_UPDATING_MINUTES),
+            )
         )
 
         # Convertir en UTC
@@ -88,6 +97,7 @@ def save_to_database(df):
                 base_currency TEXT,
                 exchange_rate REAL,
                 date TEXT,
+                timestamp_utc TEXT,
                 UNIQUE(currency, date)
             )
         """
@@ -97,18 +107,32 @@ def save_to_database(df):
         for _, row in df.iterrows():
             cursor.execute(
                 f"""
-                INSERT INTO {API_TABLE_NAME} (currency, base_currency, exchange_rate, date)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO {API_TABLE_NAME} (currency, base_currency, exchange_rate, date, timestamp_utc)
+                VALUES (?, ?, ?, ?, ?)
             """,
                 (
                     row["currency"],
                     row["base_currency"],
                     row["exchange_rate"],
                     row["date"],
+                    row["timestamp_utc"],
                 ),
             )
 
         conn.commit()
+
+        # Afficher les données insérées (limité à 10 lignes pour la lisibilité)
+        cursor.execute(
+            f"SELECT * FROM {API_TABLE_NAME} ORDER BY date DESC, currency ASC LIMIT 10"
+        )
+        rows = cursor.fetchall()
+
+        # Lire les noms des colonnes
+        column_names = [description[0] for description in cursor.description]
+
+        # Affichage propre
+        print(tabulate(rows, headers=column_names, tablefmt="fancy_grid"))
+
         conn.close()
         logging.info("Données ajoutées à la base de données.")
     except sqlite3.Error as e:
