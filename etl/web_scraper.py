@@ -76,8 +76,8 @@ def parse_rates(html: str, timestamp: datetime) -> pd.DataFrame:
         data.append(
             {
                 "currency_name": currency_name,
-                "exchange_rate": exchange_rate,
                 "base_currency": BASE_CURRENCY,
+                "exchange_rate": exchange_rate,
                 "date": timestamp.date().isoformat(),
                 "timestamp": timestamp.isoformat(),
             }
@@ -114,8 +114,8 @@ def create_table(conn: sqlite3.Connection) -> bool:
         CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             currency_name TEXT,
-            exchange_rate REAL,
             base_currency TEXT,
+            exchange_rate REAL,
             date TEXT,
             timestamp TEXT,
             UNIQUE(currency_name, timestamp)
@@ -134,14 +134,14 @@ def create_table(conn: sqlite3.Connection) -> bool:
 def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     query = f"""
         INSERT OR IGNORE INTO {TABLE_NAME}
-        (currency_name, exchange_rate, base_currency, date, timestamp)
+        (currency_name, base_currency, exchange_rate, date, timestamp)
         VALUES (?, ?, ?, ?, ?)
     """
     data = [
         (
             row["currency_name"],
-            row["exchange_rate"],
             row["base_currency"],
+            row["exchange_rate"],
             row["date"],
             row["timestamp"],
         )
@@ -162,7 +162,7 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
 
 def display_data(conn: sqlite3.Connection) -> None:
     query = f"""
-        SELECT currency_name, exchange_rate, base_currency, timestamp
+        SELECT currency_name, base_currency, exchange_rate, timestamp
         FROM {TABLE_NAME}
         ORDER BY timestamp DESC
         LIMIT 10;

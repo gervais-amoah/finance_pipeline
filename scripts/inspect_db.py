@@ -21,21 +21,31 @@ table_name = (
     or default_table_name
 )
 
-# Lire les premières lignes triées par date DESC et currency ASC
+# Vérifier les colonnes de la table
+cursor.execute(f"PRAGMA table_info({table_name})")
+columns_info = cursor.fetchall()
+column_names = [col[1] for col in columns_info]
+
+# Construire dynamiquement la clause ORDER BY
+order_clause = "ORDER BY date DESC"
+if "currency" in column_names:
+    order_clause += ", currency ASC"
+
+# Lire les premières lignes
 print(f"\n📊 Aperçu des données dans '{table_name}' (triées):")
 query = f"""
     SELECT * FROM {table_name}
-    ORDER BY date DESC, currency ASC
+    {order_clause}
     LIMIT 10;
 """
 cursor.execute(query)
 rows = cursor.fetchall()
 
-# Lire les noms des colonnes
-column_names = [description[0] for description in cursor.description]
+# Lire les noms des colonnes pour affichage
+column_names_result = [description[0] for description in cursor.description]
 
 # Affichage propre
-print(tabulate(rows, headers=column_names, tablefmt="fancy_grid"))
+print(tabulate(rows, headers=column_names_result, tablefmt="fancy_grid"))
 
 # Fermer la connexion
 conn.close()

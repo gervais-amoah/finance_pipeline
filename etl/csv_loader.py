@@ -223,7 +223,7 @@ def display_data(conn: sqlite3.Connection) -> None:
     Args:
         conn: SQLite connection
     """
-    logging.info("Displaying recent data (limited to 10 rows):")
+    logging.info("Last 10 inserted rows:")
     query = f"""
         SELECT currency, base_currency, exchange_rate, timestamp_utc
         FROM {HISTORY_TABLE_NAME}

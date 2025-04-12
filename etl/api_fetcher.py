@@ -219,7 +219,7 @@ def display_data(conn: sqlite3.Connection) -> None:
 
     try:
         result_df = pd.read_sql_query(display_query, conn)
-        logging.info("Displaying recent data (limited to 10 rows):")
+        logging.info("Last 10 inserted rows:")
         print(tabulate(result_df, headers="keys", tablefmt="fancy_grid"))
     except sqlite3.Error as e:
         logging.error(f"❌ Error displaying data: {e}")
