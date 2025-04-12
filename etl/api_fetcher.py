@@ -13,12 +13,14 @@ from tabulate import tabulate
 BASE_CURRENCY = "EUR"
 API_URL = "https://api.frankfurter.app/latest"
 DB_PATH = Path("database/forex_data.db")
-API_TABLE_NAME = "forex_rates_api"
 CSV_FILE_PATH = Path("data/processed/forex_api.csv")
 
 # API settings - Updated daily around 16:00 CET
 API_UPDATE_TIME = time(hour=16, minute=0)
 CET_TIMEZONE = pytz.timezone("CET")
+
+# SQL table name
+API_TABLE_NAME = "forex_rates_api"
 
 
 # Logger configuration
@@ -40,7 +42,7 @@ def ensure_directories() -> bool:
         CSV_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
         return True
     except Exception as e:
-        logging.error(f"Error creating directories: {e}")
+        logging.error(f"❌ Error creating directories: {e}")
         return False
 
 
@@ -53,12 +55,13 @@ def fetch_forex_data() -> Optional[Dict[str, Any]]:
     params = {"base": BASE_CURRENCY}
 
     try:
+        logging.info(f"⌛ Fetching data from API...")
         response = requests.get(API_URL, params=params)
         response.raise_for_status()
-        logging.info("Data retrieved successfully from API.")
+        logging.info("✅ Data retrieved successfully from API.")
         return response.json()
     except requests.RequestException as e:
-        logging.error(f"Error retrieving data from API: {e}")
+        logging.error(f"❌ Error retrieving data from API: {e}")
         return None
 
 
@@ -94,12 +97,12 @@ def transform_forex_data(raw_data: Dict[str, Any]) -> Optional[pd.DataFrame]:
         df["timestamp_utc"] = utc_timestamp
 
         logging.info(
-            f"JSON data transformed to DataFrame successfully. Rows: {len(df)}"
+            f"✅ JSON data transformed to DataFrame successfully. Rows: {len(df)}"
         )
         return df
 
     except ValueError as e:
-        logging.error(f"Error transforming data: {e}")
+        logging.error(f"❌ Error transforming data: {e}")
         return None
 
 
@@ -115,13 +118,13 @@ def save_to_csv(df: pd.DataFrame) -> bool:
     try:
         if CSV_FILE_PATH.exists():
             df.to_csv(CSV_FILE_PATH, mode="a", header=False, index=False)
-            logging.info(f"Data appended to {CSV_FILE_PATH}")
+            logging.info(f"✅ Data appended to {CSV_FILE_PATH}")
         else:
             df.to_csv(CSV_FILE_PATH, mode="w", header=True, index=False)
-            logging.info(f"File {CSV_FILE_PATH} created with data.")
+            logging.info(f"✅ File {CSV_FILE_PATH} created with data.")
         return True
     except Exception as e:
-        logging.error(f"Error saving to CSV: {e}")
+        logging.error(f"❌ Error saving to CSV: {e}")
         return False
 
 
@@ -150,10 +153,10 @@ def create_table(conn: sqlite3.Connection) -> bool:
         cursor = conn.cursor()
         cursor.execute(create_table_query)
         conn.commit()
-        logging.info(f"Table {API_TABLE_NAME} created or already exists.")
+        logging.info(f"✅ Table {API_TABLE_NAME} created or already exists.")
         return True
     except sqlite3.Error as e:
-        logging.error(f"Error creating table: {e}")
+        logging.error(f"❌ Error creating table: {e}")
         return False
 
 
@@ -192,10 +195,10 @@ def insert_data(
         cursor.executemany(insert_query, data_to_insert)
         conn.commit()
         rows_affected = cursor.rowcount
-        logging.info(f"{rows_affected} rows inserted into database.")
+        logging.info(f"✅ {rows_affected} rows inserted into database.")
         return rows_affected
     except sqlite3.Error as e:
-        logging.error(f"Error inserting data: {e}")
+        logging.error(f"❌ Error inserting data: {e}")
         conn.rollback()
         return 0
 
@@ -219,7 +222,7 @@ def display_data(conn: sqlite3.Connection) -> None:
         logging.info("Displaying recent data (limited to 10 rows):")
         print(tabulate(result_df, headers="keys", tablefmt="fancy_grid"))
     except sqlite3.Error as e:
-        logging.error(f"Error displaying data: {e}")
+        logging.error(f"❌ Error displaying data: {e}")
 
 
 def save_to_database(df: pd.DataFrame) -> bool:
@@ -243,32 +246,35 @@ def save_to_database(df: pd.DataFrame) -> bool:
             return False
 
     except sqlite3.Error as e:
-        logging.error(f"Database connection error: {e}")
+        logging.error(f"❌ Database connection error: {e}")
         return False
 
 
 def run() -> None:
     """Main ETL pipeline function."""
-    logging.info(f"Starting ETL:API pipeline with {API_URL}")
+    logging.info(f"⚙️ Starting ETL:API pipeline with {API_URL}")
 
     if not ensure_directories():
-        logging.error("Failed to create necessary directories. Exiting.")
+        logging.error("❌ Failed to create necessary directories. Exiting.")
         return
 
     raw_data = fetch_forex_data()
     if not raw_data:
-        logging.error("Failed to fetch data. Exiting.")
+        logging.error("❌ Failed to fetch data. Exiting.")
         return
 
     df = transform_forex_data(raw_data)
+
     if df is not None:
         csv_success = save_to_csv(df)
         db_success = save_to_database(df)
 
         if csv_success and db_success:
-            logging.info("ETL:API process completed successfully.")
+            logging.info("✅ ETL:API process completed successfully.")
         else:
-            logging.warning("ETL:API process completed with warnings.")
+            logging.warning("⚠️ ETL:API process completed with warnings.")
+    else:
+        logging.error("❌ ETL:API process failed during transformation.")
 
 
 if __name__ == "__main__":
