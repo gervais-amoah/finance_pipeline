@@ -1,9 +1,10 @@
 import requests
 import pandas as pd
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 import logging
+import pytz
+from datetime import datetime, time
 
 # Configuration du logger
 logging.basicConfig(
@@ -36,9 +37,21 @@ def fetch_forex_data():
         rates = data.get("rates", {})
         date = data.get("date", str(datetime.now().date()))
 
+        # Construire une datetime CET à 16:00
+        date_str = data.get("date", str(datetime.now().date()))
+        cet = pytz.timezone("CET")
+        cet_dt = cet.localize(
+            datetime.combine(datetime.strptime(date_str, "%Y-%m-%d"), time(16, 0))
+        )
+
+        # Convertir en UTC
+        utc_dt = cet_dt.astimezone(pytz.utc)
+        utc_timestamp = utc_dt.isoformat()
+
         df = pd.DataFrame(rates.items(), columns=["currency", "exchange_rate"])
         df["base_currency"] = BASE_CURRENCY
         df["date"] = date
+        df["timestamp_utc"] = utc_timestamp
 
         logging.info("Données JSON converties en DataFrame avec succès.")
         logging.info(f"Nombre de lignes récupérées: {len(df)}")
