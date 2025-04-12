@@ -2,7 +2,7 @@ import logging
 import pytz
 
 from pathlib import Path
-from datetime import datetime, time
+from datetime import time
 
 # Logger configuration
 logging.basicConfig(
