@@ -13,7 +13,7 @@ CSV_PATH = Path("data/raw/daily_forex_rates.csv")
 DB_PATH = Path("database/forex_data.db")
 
 # Nom de la table SQL
-TABLE_NAME = "forex_rates_history"
+HISTORY_TABLE_NAME = "forex_rates_history"
 
 
 # 1. Chargement du CSV
@@ -39,7 +39,7 @@ def clean_data(df):
 def create_table(conn):
     logging.info("Création de la table SQL si elle n'existe pas.")
     query = f"""
-    CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+    CREATE TABLE IF NOT EXISTS {HISTORY_TABLE_NAME} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         currency TEXT NOT NULL,
         base_currency TEXT NOT NULL,
@@ -63,7 +63,7 @@ def insert_data(conn, df):
         try:
             conn.execute(
                 f"""
-                INSERT OR IGNORE INTO {TABLE_NAME}
+                INSERT OR IGNORE INTO {HISTORY_TABLE_NAME}
                 (currency, base_currency, currency_name, exchange_rate, date)
                 VALUES (?, ?, ?, ?, ?)
             """,
