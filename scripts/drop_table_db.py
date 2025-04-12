@@ -10,7 +10,7 @@ tables = cursor.fetchall()
 print(tables)
 
 table_to_drop = (
-    input("❌ Entrez le nom de la table à supprimer (par défaut 'forex_rates_api'): ")
+    input("⚠️ Entrez le nom de la table à supprimer (par défaut 'forex_rates_api'): ")
     or "forex_rates_api"
 )
 

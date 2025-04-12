@@ -2,6 +2,7 @@ import pandas as pd
 import sqlite3
 import logging
 from pathlib import Path
+from tabulate import tabulate
 
 # Configuration du logger
 logging.basicConfig(
@@ -9,7 +10,7 @@ logging.basicConfig(
 )
 
 # Configuration des chemins
-CSV_PATH = Path("data/raw/daily_forex_rates.csv")
+CSV_PATH = Path("data/processed/forex_rates_1y.csv")
 DB_PATH = Path("database/forex_data.db")
 
 # Nom de la table SQL
@@ -85,7 +86,16 @@ def insert_data(conn, df):
     )
 
 
-# 5. Pipeline principal
+# 5. Afficher les données insérées (limité à 10 lignes pour la lisibilité)
+def display_data(conn):
+    logging.info("Affichage des données insérées (limité à 10 lignes):")
+    query = (
+        f"SELECT * FROM {HISTORY_TABLE_NAME} ORDER BY date DESC, currency ASC LIMIT 10;"
+    )
+    df = pd.read_sql_query(query, conn)
+    print(tabulate(df, headers="keys", tablefmt="fancy_grid"))
+
+
 def run():
     if not CSV_PATH.exists():
         logging.error(f"Fichier CSV introuvable à {CSV_PATH}")
