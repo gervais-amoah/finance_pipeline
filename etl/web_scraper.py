@@ -9,13 +9,14 @@ from bs4 import BeautifulSoup
 from tabulate import tabulate
 
 from etl.config import (
-    DEFAULT_CURRENCY,
     logging,
-    WEBPAGE_URL,
     DB_PATH,
+    WEBPAGE_URL,
+    DEFAULT_CURRENCY,
     PROCESSED_FILES_PATH,
     WEB_SCRAPPER_TABLE_NAME,
 )
+from utils.email_utils import alert_admin
 
 
 def ensure_directories() -> bool:
@@ -57,8 +58,24 @@ def extract_timestamp(html: str) -> Optional[datetime]:
 
 def parse_rates(html: str, timestamp: datetime) -> pd.DataFrame:
     soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table", class_="tablesorter ratesTable")
-    rows = table.find_all("tr")[1:] if table else []
+
+    try:
+        table = soup.find("table", class_="tablesorter ratesTableAAAAAA")
+        if not table:
+            logging.error("❌ Exchange rates table not found.")
+            alert_admin(f"Exchange rates table not found.", "Scraping Error")
+            return pd.DataFrame()
+
+        rows = table.find_all("tr")[1:] if table else []
+        if not rows:
+            logging.error("❌ No rows found in exchange rates table.")
+            alert_admin(f"No rows found in exchange rates table.", "Scraping Error")
+            return pd.DataFrame()
+
+    except Exception as e:
+        logging.error(f"❌ Failed to find exchange rates table: {e}")
+        alert_admin(f"Failed to find exchange rates table: {e}", "Scraping Error")
+        return pd.DataFrame()
 
     data: List[Dict] = []
     for row in rows:

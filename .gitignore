@@ -1,0 +1,34 @@
+# --- ENVIRONNEMENT PYTHON ---
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# --- FICHIERS DE DONNÉES ---
+data/raw/
+data/processed/
+*.csv
+*.db
+*.sqlite
+*.sqlite3
+
+# --- LOGS & OUTPUT ---
+*.log
+
+# --- SECRETS / CONFIG PERSO ---
+kaggle.json
+*.pem
+*.key
+secrets.json
+
+# --- NOTEBOOKS (si tu en as) ---
+.ipynb_checkpoints/
+
+# --- SYSTÈME ---
+.DS_Store
+Thumbs.db
