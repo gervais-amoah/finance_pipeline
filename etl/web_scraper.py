@@ -60,7 +60,7 @@ def parse_rates(html: str, timestamp: datetime) -> pd.DataFrame:
     soup = BeautifulSoup(html, "html.parser")
 
     try:
-        table = soup.find("table", class_="tablesorter ratesTableAAAAAA")
+        table = soup.find("table", class_="tablesorter ratesTable")
         if not table:
             logging.error("❌ Exchange rates table not found.")
             alert_admin(f"Exchange rates table not found.", "Scraping Error")
