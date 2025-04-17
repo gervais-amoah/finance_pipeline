@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 import sqlite3
+import pytz
 
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -17,6 +18,8 @@ from etl.config import (
     WEB_SCRAPPER_TABLE_NAME,
 )
 from utils.email_utils import alert_admin
+
+from services.supabase import sync_data
 
 
 def ensure_directories() -> bool:
@@ -50,6 +53,8 @@ def extract_timestamp(html: str) -> Optional[datetime]:
     raw = span.text.strip()  # e.g. "Apr 12, 2025 18:28 UTC"
     try:
         dt = datetime.strptime(raw, "%b %d, %Y %H:%M %Z")
+        # Add explicit UTC timezone info
+        dt = dt.replace(tzinfo=pytz.UTC)
         return dt
     except ValueError as e:
         logging.error(f"❌ Failed to parse timestamp: {e}")
@@ -90,7 +95,7 @@ def parse_rates(html: str, timestamp: datetime) -> pd.DataFrame:
                 "base_currency": DEFAULT_CURRENCY,
                 "exchange_rate": exchange_rate,
                 "date": timestamp.date().isoformat(),
-                "timestamp": timestamp.isoformat(),
+                "timestamptz": timestamp.isoformat(),
             }
         )
 
@@ -108,7 +113,7 @@ def save_to_csv(df: pd.DataFrame, date_str: str) -> bool:
         if path.exists():
             existing_df = pd.read_csv(path)
             combined = pd.concat([existing_df, df]).drop_duplicates(
-                subset=["currency_name", "timestamp"]
+                subset=["currency_name", "timestamptz"]
             )
         else:
             combined = df
@@ -128,8 +133,9 @@ def create_table(conn: sqlite3.Connection) -> bool:
             base_currency TEXT,
             exchange_rate REAL,
             date TEXT,
-            timestamp TEXT,
-            UNIQUE(currency_name, timestamp)
+            timestamptz TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(currency_name, timestamptz)
         );
     """
     try:
@@ -145,7 +151,7 @@ def create_table(conn: sqlite3.Connection) -> bool:
 def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     query = f"""
         INSERT OR IGNORE INTO {WEB_SCRAPPER_TABLE_NAME}
-        (currency_name, base_currency, exchange_rate, date, timestamp)
+        (currency_name, base_currency, exchange_rate, date, timestamptz)
         VALUES (?, ?, ?, ?, ?)
     """
     data = [
@@ -154,7 +160,7 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
             row["base_currency"],
             row["exchange_rate"],
             row["date"],
-            row["timestamp"],
+            row["timestamptz"],
         )
         for _, row in df.iterrows()
     ]
@@ -173,9 +179,9 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
 
 def display_data(conn: sqlite3.Connection) -> None:
     query = f"""
-        SELECT currency_name, base_currency, exchange_rate, timestamp
+        SELECT currency_name, base_currency, exchange_rate, timestamptz
         FROM {WEB_SCRAPPER_TABLE_NAME}
-        ORDER BY timestamp DESC
+        ORDER BY timestamptz DESC
         LIMIT 10;
     """
     try:
@@ -191,8 +197,8 @@ def save_to_db(df: pd.DataFrame) -> bool:
         with sqlite3.connect(DB_PATH) as conn:
             if not create_table(conn):
                 return False
-            inserted = insert_data(conn, df)
-            if inserted > 0:
+            rows_inserted = insert_data(conn, df)
+            if rows_inserted > 0:
                 display_data(conn)
             return True
     except sqlite3.Error as e:
@@ -222,6 +228,7 @@ def run_web_scrapping_process() -> None:
     db_ok = save_to_db(df)
 
     if csv_ok and db_ok:
+        sync_data(DB_PATH, WEB_SCRAPPER_TABLE_NAME, source="web_scraper")
         logging.info("✅ ETL:Web Scraping process completed successfully.")
     else:
         logging.warning("⚠️ ETL:Web Scraping process completed with warnings.")
