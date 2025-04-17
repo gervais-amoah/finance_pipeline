@@ -19,6 +19,9 @@ from etl.config import (
 )
 
 
+from services.supabase import sync_data
+
+
 def ensure_directories() -> bool:
     """Ensure all required directories exist.
 
@@ -76,13 +79,13 @@ def transform_forex_data(raw_data: Dict[str, Any]) -> Optional[pd.DataFrame]:
 
         # Convert to UTC
         utc_dt = cet_dt.astimezone(pytz.utc)
-        utc_timestamp = utc_dt.isoformat()
+        utc_timestamptz = utc_dt.isoformat()
 
         # Create DataFrame
         df = pd.DataFrame(rates.items(), columns=["currency", "exchange_rate"])
         df["base_currency"] = DEFAULT_CURRENCY
         df["date"] = date_str
-        df["timestamp_utc"] = utc_timestamp
+        df["timestamptz"] = utc_timestamptz
 
         logging.info(
             f"✅ JSON data transformed to DataFrame successfully. Rows: {len(df)}"
@@ -132,8 +135,9 @@ def create_table(conn: sqlite3.Connection) -> bool:
             base_currency TEXT,
             exchange_rate REAL,
             date TEXT,
-            timestamp_utc TEXT,
-            UNIQUE(currency, date)
+            timestamptz TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(currency, timestamptz)
         )
     """
 
@@ -162,8 +166,8 @@ def insert_data(
         int: Number of rows inserted
     """
     insert_query = f"""
-        INSERT INTO {API_TABLE_NAME} 
-        (currency, base_currency, exchange_rate, date, timestamp_utc)
+        INSERT OR IGNORE INTO {API_TABLE_NAME} 
+        (currency, base_currency, exchange_rate, date, timestamptz)
         VALUES (?, ?, ?, ?, ?)
     """
 
@@ -173,7 +177,7 @@ def insert_data(
             row["base_currency"],
             row["exchange_rate"],
             row["date"],
-            row["timestamp_utc"],
+            row["timestamptz"],
         )
         for _, row in df.iterrows()
     ]
@@ -199,9 +203,9 @@ def display_data(conn: sqlite3.Connection) -> None:
 
     """
     display_query = f"""
-        SELECT currency, base_currency, exchange_rate, timestamp_utc
+        SELECT currency, base_currency, exchange_rate, timestamptz
         FROM {API_TABLE_NAME}
-        ORDER BY timestamp_utc DESC, currency ASC
+        ORDER BY timestamptz DESC, currency ASC
         LIMIT 10;
     """
 
@@ -213,7 +217,7 @@ def display_data(conn: sqlite3.Connection) -> None:
         logging.error(f"❌ Error displaying data: {e}")
 
 
-def save_to_database(df: pd.DataFrame) -> bool:
+def save_to_local_db(df: pd.DataFrame) -> bool:
     """Save the data to SQLite database using smaller function calls.
 
     Args:
@@ -255,7 +259,8 @@ def run_api_process() -> None:
 
     if df is not None:
         csv_success = save_to_csv(df)
-        db_success = save_to_database(df)
+        db_success = save_to_local_db(df)
+        sync_data(DB_PATH, API_TABLE_NAME, source="api")
 
         if csv_success and db_success:
             logging.info("✅ ETL:API process completed successfully.")
