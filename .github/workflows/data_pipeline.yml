@@ -2,7 +2,7 @@ name: Daily Forex Data Pipeline
 
 on:
   schedule:
-    - cron: "0 17 * * *" # Tous les jours à 17h UTC
+    - cron: "0 6 * * *" # Tous les jours à 6h UTC
   workflow_dispatch: # Permet d'exécuter manuellement le workflow
 
 jobs:
