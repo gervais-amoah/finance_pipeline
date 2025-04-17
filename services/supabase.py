@@ -46,10 +46,11 @@ def sync_data(db_path: str, table_name: str, source: str):
     try:
         conn = sqlite3.connect(db_path)
 
+        # Query to fetch data from the last 20 minutes
         query = f"""
             SELECT currency, base_currency, exchange_rate, date, timestamptz
             FROM {table_name}
-            WHERE created_at >= datetime('now', '-5 minutes')
+            WHERE timestamptz >= datetime('now', '-20 minutes')
         """
 
         df = pd.read_sql_query(query, conn)
