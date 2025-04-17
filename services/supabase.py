@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 from etl.config import logging
+from utils.email_utils import alert_admin
 
 load_dotenv()
 
@@ -68,6 +69,10 @@ def sync_data(db_path: str, table_name: str, source: str):
 
     except Exception as e:
         logging.error(f"❌ [Sync] Failed to sync data to Supabase: {e}")
+        alert_admin(
+            subject="❌ [Sync] Supabase Sync Error",
+            message=f"Failed to sync data to Supabase: {e}",
+        )
 
     finally:
         conn.close()

@@ -17,6 +17,7 @@ from etl.config import (
     PROCESSED_FILES_PATH,
     WEB_SCRAPPER_TABLE_NAME,
 )
+
 from utils.email_utils import alert_admin
 
 from services.supabase import sync_data
