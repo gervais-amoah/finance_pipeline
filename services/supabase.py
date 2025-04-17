@@ -2,13 +2,11 @@ import sqlite3
 import pandas as pd
 import os
 
-from dotenv import load_dotenv
 from supabase import create_client, Client
 
 from etl.config import logging
 from utils.email_utils import alert_admin
 
-load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
