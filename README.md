@@ -60,9 +60,9 @@ Le pipeline s’exécute automatiquement chaque jour grâce à GitHub Actions :
 - 🔄 Lancement automatique des trois ETL (CSV, API, scraping)
 - 📤 Upload des nouvelles données vers Supabase
 - 🧪 À terme : ajout de tests automatiques pour garantir la qualité des données
-- ⚙️ Le tout est géré dans le fichier .github/workflows/etl.yml
+- ⚙️ Le tout est géré dans le fichier `.github/workflows/etl.yml`
 
-![Screenshot - GitHub Actions board](https://github.com/user-attachments/assets/a0627723-1f2f-4dd8-9b06-fc5cc035cb35)
+![Automatic Pipeline Sucessfuly excecuted](https://github.com/user-attachments/assets/03d4b333-1fa0-4088-b994-901ce9dcfb77)
 
 ---
 
