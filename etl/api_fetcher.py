@@ -1,8 +1,8 @@
 import pandas as pd
 import requests
 import sqlite3
-
 import pytz
+
 from datetime import datetime
 from typing import Dict, Optional, Any
 from tabulate import tabulate

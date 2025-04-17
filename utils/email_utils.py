@@ -1,13 +1,11 @@
 import os
 import smtplib
-
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
-
 from etl.config import logging
 
-load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 
 def alert_admin(message: str, subject: str = "Alerte ETL") -> bool:
