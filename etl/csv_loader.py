@@ -1,5 +1,6 @@
 import pandas as pd
 import sqlite3
+import pytz
 
 from typing import Optional
 from pathlib import Path
@@ -12,6 +13,9 @@ from etl.config import (
     RAW_CSV_FILE_PATH,
     HISTORY_TABLE_NAME,
 )
+
+
+from services.supabase import sync_data
 
 
 def ensure_directories() -> bool:
@@ -95,13 +99,14 @@ def transform_data(path: Path) -> pd.DataFrame:
         transformed_df.dropna(
             subset=["currency", "exchange_rate", "date"], inplace=True
         )
-        transformed_df["date"] = pd.to_datetime(transformed_df["date"], errors="coerce")
         transformed_df = transformed_df[transformed_df["exchange_rate"] > 0]
+        transformed_df["date"] = pd.to_datetime(transformed_df["date"], errors="coerce")
 
-        # Add timestamp_utc based on 10:00:00 UTC
-        transformed_df["timestamp_utc"] = transformed_df["date"] + pd.Timedelta(
-            hours=10
-        )
+        # Add timestamptz based on 10:00:00 UTC
+        transformed_df["timestamptz"] = (
+            transformed_df["date"] + pd.Timedelta(hours=10)
+        ).dt.tz_localize("UTC")
+
         logging.info(f"✅ {len(transformed_df)} rows after transforming.")
         return transformed_df
     except AttributeError as e:
@@ -122,11 +127,13 @@ def create_table(conn: sqlite3.Connection) -> bool:
         base_currency TEXT NOT NULL,
         currency_name TEXT,
         exchange_rate REAL NOT NULL,
-        date DATE NOT NULL,
-        timestamp_utc TEXT NOT NULL,
-        UNIQUE(currency, date)
+        date TEXT,
+        timestamptz TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(currency, timestamptz)
     );
     """
+    # TODO: timestamp => timestamptz and UNIQUE(currency, timestamptz)
     try:
         cursor = conn.cursor()
         cursor.execute(create_table_query)
@@ -157,8 +164,10 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
         # Create a temporary DataFrame with formatted dates
         insert_df = df.copy()
         insert_df["date"] = insert_df["date"].dt.strftime("%Y-%m-%d")
-        insert_df["timestamp_utc"] = insert_df["timestamp_utc"].dt.strftime(
-            "%Y-%m-%dT%H:%M:%S"
+        insert_df["timestamptz"] = (
+            insert_df["timestamptz"]
+            .dt.strftime("%Y-%m-%dT%H:%M:%S")
+            .replace(tzinfo=pytz.UTC)
         )
 
         # Use to_sql with if_exists='append' and index=False
@@ -185,7 +194,7 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
                 conn.execute(
                     f"""
                     INSERT OR IGNORE INTO {HISTORY_TABLE_NAME}
-                    (currency, base_currency, currency_name, exchange_rate, date, timestamp_utc)
+                    (currency, base_currency, currency_name, exchange_rate, date, timestamptz)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
@@ -194,7 +203,7 @@ def insert_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
                         row.currency_name,
                         row.exchange_rate,
                         row.date.strftime("%Y-%m-%d"),
-                        row.timestamp_utc.isoformat(),
+                        row.timestamptz.isoformat(),
                     ),
                 )
                 inserted += conn.total_changes
@@ -217,9 +226,9 @@ def display_data(conn: sqlite3.Connection) -> None:
     """
     logging.info("Last 10 inserted rows:")
     query = f"""
-        SELECT currency, base_currency, exchange_rate, timestamp_utc
+        SELECT currency, base_currency, exchange_rate, timestamptz
         FROM {HISTORY_TABLE_NAME}
-        ORDER BY timestamp_utc DESC, currency ASC
+        ORDER BY timestamptz DESC, currency ASC
         LIMIT 10;
     """
     df = pd.read_sql_query(query, conn)
@@ -259,7 +268,7 @@ def run_csv_loading_process() -> None:
         logging.error("❌ Failed to create necessary directories. Exiting.")
         return
 
-    processed_csv_file = process_raw_csv_file()
+    processed_csv_file = process_raw_csv_file(months=1)
     if not processed_csv_file:
         logging.error("❌ Failed to process CSV file. Exiting.")
         return
@@ -270,6 +279,7 @@ def run_csv_loading_process() -> None:
         db_success = save_to_database(df)
 
         if db_success:
+            sync_data(DB_PATH, HISTORY_TABLE_NAME, source="csv")
             logging.info("✅ ETL:CSV process completed successfully.")
         else:
             logging.warning("⚠️ ETL:CSV process completed with warnings.")

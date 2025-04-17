@@ -15,10 +15,10 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def column_exists(conn, table_name: str, column_name: str) -> bool:
+def get_columns_except_id(conn, table_name: str) -> str:
     cursor = conn.execute(f"PRAGMA table_info({table_name})")
-    columns = [row[1] for row in cursor.fetchall()]
-    return column_name in columns
+    columns = [row[1] for row in cursor.fetchall() if row[1] != "id"]
+    return ", ".join(columns)
 
 
 def upload_to_supabase(df: pd.DataFrame, source: str = ""):
@@ -52,9 +52,11 @@ def sync_data(db_path: str, table_name: str, source: str):
     try:
         conn = sqlite3.connect(db_path)
 
+        columns = get_columns_except_id(conn, table_name)
+
         # Query to fetch data from the last 20 minutes
         query = f"""
-            SELECT *
+            SELECT {columns}
             FROM {table_name}
             WHERE created_at >= datetime('now', '-20 minutes')
         """
