@@ -16,18 +16,23 @@ forex-data-pipeline/
 │
 ├── main.py                    # Script principal qui lance tous les ETL
 ├── etl/
-│   ├── csv_etl.py             # Extraction + traitement du fichier CSV local (2 mois)
+│   ├── csv_loader.py          # Extraction + traitement du fichier CSV local (2 mois)
 │   ├── api_fetcher.py         # Extraction des données depuis l'API Frankfurter
 │   ├── web_scraper.py         # Scraping en direct depuis x-rates.com
+│   ├── supabase_uploader.py   # Envoi des nouvelles données vers Supabase
+│
+├── services/
+│   ├── supabase.py   # Envoi des nouvelles données vers Supabase
 │
 ├── data/
 │   ├── raw/                   # Contient les données CSV brutes (ex: de Kaggle)
-│   └── processed/             # Contient les CSV traités par chaque source
+│   └── processed/             # Contient les CSV traités par chaque source (généré automatiquemant)
 │
 ├── database/
 │   └── forex_data.db          # Base de données SQLite contenant toutes les données
 │
-├── .env                       # Contient les variables sensibles (email, mots de passe)
+├── .github/workflows/         # Configuration GitHub Actions pour exécutions automatiques
+├── .env                       # Contient les variables sensibles (email, Supabase, etc.)
 ├── .gitignore                 # Fichiers à ignorer par Git
 └── README.md                  # Ce fichier
 ```
@@ -36,12 +41,28 @@ forex-data-pipeline/
 
 ## ⚙️ Fonctionnalités principales
 
-- ✅ **Orchestration complète** via `main.py`
-- ✅ **Sauvegarde double** (CSV + SQLite)
+- ✅ **Orchestration** complète via main.py
+- ✅ **Sauvegarde doubl**e (CSV + SQLite)
 - ✅ **Nettoyage et transformation** des données
-- ✅ **Traitement intelligent du CSV Kaggle** : extraction uniquement des 2 derniers mois
+- ✅ **Traitement intelligent du CSV Kaggle** : extraction uniquement des 2 derniers mois par defaut
 - ✅ **Web scraping dynamique** avec alerte email si structure HTML change
+- ✅ **Synchronisation vers Supabase** des données récentes avec alerte email en cas d'échec
 - ✅ **Logging clair** dans tous les scripts
+- ✅ **Automatisation du pipeline** via GitHub Action
+
+---
+
+## 🔁 Automatisation avec GitHub Actions
+
+Le pipeline s’exécute automatiquement chaque jour grâce à GitHub Actions :
+
+- ⏱️ Planification quotidienne via cron
+- 🔄 Lancement automatique des trois ETL (CSV, API, scraping)
+- 📤 Upload des nouvelles données vers Supabase
+- 🧪 À terme : ajout de tests automatiques pour garantir la qualité des données
+- ⚙️ Le tout est géré dans le fichier .github/workflows/etl.yml
+
+![Screenshot - GitHub Actions board](https://github.com/user-attachments/assets/a0627723-1f2f-4dd8-9b06-fc5cc035cb35)
 
 ---
 
@@ -50,6 +71,8 @@ forex-data-pipeline/
 Si le scraping échoue (ex: structure HTML modifiée), une fonction `alert_admin()` envoie automatiquement un **email d’alerte**.
 
 > 🛡️ Les identifiants sont stockés en toute sécurité dans `.env`.
+
+![screenshot - Email received when there was error in excecution](https://github.com/user-attachments/assets/094a571e-abb2-4a10-be9c-8eddd6f96911)
 
 ---
 
@@ -78,6 +101,10 @@ SMTP_PORT = 587 # Le port
 EMAIL_ADDRESS = "ton.nom@email.com"
 EMAIL_PASSWORD = "tonMotDePasse" # Pour Gmail, tu peux créer un "mot de passe d'application". Visites https://myaccount.google.com/apppasswords
 RECIPIENT_EMAIL = "admin.nom@email.com"
+
+# Supabase credentials
+SUPABASE_URL = "https://your-project.supabase.co"
+SUPABASE_KEY = "your-secret-key"
 ```
 
 ### 4. Lancer le pipeline
@@ -97,22 +124,15 @@ python main.py
 - `pytz`
 - `python-dotenv`
 - `smtplib` (standard lib)
+- `supabase-py`
 
 ---
 
 ## 🧠 Prochaines évolutions
 
-- [ ] Automatisation via GitHub Actions
 - [ ] Dashboard simple avec GitHub Pages
-- [ ] Passage à une base Supabase pour accès API
 - [ ] Tests unitaires avec `pytest`
 - [ ] Téléchargement automatique du CSV Kaggle via API
-
----
-
-## 📧 Alerte email en cas de problème
-
-![screenshot](https://github.com/user-attachments/assets/094a571e-abb2-4a10-be9c-8eddd6f96911)
 
 ---
 
