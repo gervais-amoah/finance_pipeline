@@ -62,7 +62,7 @@ Le pipeline s’exécute automatiquement chaque jour grâce à GitHub Actions :
 - 🧪 À terme : ajout de tests automatiques pour garantir la qualité des données
 - ⚙️ Le tout est géré dans le fichier `.github/workflows/etl.yml`
 
-![Automatic Pipeline Sucessfuly excecuted](https://github.com/user-attachments/assets/03d4b333-1fa0-4088-b994-901ce9dcfb77)
+![Automatic Pipeline Sucessfuly excecuted daily](https://github.com/user-attachments/assets/2f303689-457b-492e-ab85-d88dbd268c3d)
 
 ---
 
